@@ -9,7 +9,6 @@ Notes:
 
 :param Columns_Config - Dictionary of dictionaries with column config data.  Must be configured for
 
-
 # _COLUMNS_DICT value definitions:
 # PRIMARY KEY - field that serves as unique identifier and link between sql table and smartsheet
 # PUSH - column fields are compared between smartsheet and sql -> changes are replicated from sql to smartsheet.
@@ -17,9 +16,6 @@ Notes:
 # POPULATE - column fields are NOT compared between smartsheet and sql -> field is populated during initial smartsheet
 # insert
 # IGNORE - column fields are NOT compared between smartsheet and sql and changes are NOT replicated in either direction.
-
-2023-04-18 - Created by Brian Pirro
-2024-01-05 - Changes to support new RegionalSalesContact column
 """
 
 import logging
@@ -27,7 +23,7 @@ import os
 import pandas as pd
 import smartsheet
 
-from dwlib.dwclients.smartsheet_dw import SmartsheetClient
+from smartsheet_dw import SmartsheetClient
 from sqlalchemy.engine import URL, create_engine
 from sqlalchemy.sql import text as sa_text
 from sys import argv

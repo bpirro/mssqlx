@@ -1,14 +1,12 @@
 """Smartsheet ETL Library
 
 Utility module for exporting or viewing clients data.
-
-2023-02-26 - Created by Brian Pirro
 """
 
 import os
 import smartsheet
 from pandas import DataFrame
-from dwlib.dwlib.db import SqlServerClient
+from sql import SqlServerClient
 
 
 class SmartsheetClient(smartsheet.Smartsheet):
