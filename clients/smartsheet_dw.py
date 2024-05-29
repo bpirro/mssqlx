@@ -6,7 +6,7 @@ Utility module for exporting or viewing clients data.
 import os
 import smartsheet
 from pandas import DataFrame
-from sql import SqlServerClient
+from mssqlx.sql import SqlServerClient
 
 
 class SmartsheetClient(smartsheet.Smartsheet):
