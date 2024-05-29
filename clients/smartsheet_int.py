@@ -23,7 +23,7 @@ import os
 import pandas as pd
 import smartsheet
 
-from smartsheet_dw import SmartsheetClient
+from clients.smartsheet_dw import SmartsheetClient
 from sqlalchemy.engine import URL, create_engine
 from sqlalchemy.sql import text as sa_text
 from sys import argv
