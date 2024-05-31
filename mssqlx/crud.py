@@ -1,8 +1,6 @@
 """"Data Warehouse database connection utilities
 
 Utilities for interacting with data warehouse database objects.
-
-2024-01-26 - Created by Brian Pirro
 """
 
 import pandas as pd
