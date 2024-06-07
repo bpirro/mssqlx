@@ -7,7 +7,7 @@ import os
 import smartsheet
 
 from pandas import DataFrame
-from mssqlx.sql import SqlServerClient
+from mssqlx.crud import SqlServerClient
 
 
 class SmartsheetClient(smartsheet.Smartsheet):
@@ -98,7 +98,7 @@ class SmartsheetClient(smartsheet.Smartsheet):
         for column_name, value in columns_dict.items():
             data_dict[column_name] = list()
 
-        # poplute ss data dictionary
+        # populate ss data dictionary
         for row in sheet.rows:
             data_dict['RowID'].append(int(row.id))
             for column_map_name, column_map_id in columns_dict.items():
@@ -107,6 +107,10 @@ class SmartsheetClient(smartsheet.Smartsheet):
 
         # convert ss data dictionary to dataframe
         df = DataFrame(data_dict).infer_objects()
+
+        # drop rows that contain all blank values
+        user_columns = list(df.columns)[1:]
+        df = df.dropna(axis=0, how='all', subset=user_columns)
 
         return df
 
