@@ -7,22 +7,20 @@ import os
 import smartsheet
 
 from pandas import DataFrame
-from mssqlx.sql import SqlServerClient
+from mssqlx.crud import SqlServerClient
 
 
 class SmartsheetClient(smartsheet.Smartsheet):
     """Class for running ETL on Smartsheet"""
 
-    def __init__(self, access_token, DbClient=SqlServerClient, **kwargs):
+    def __init__(self, access_token):
         self._access_token = access_token
         self.client = smartsheet.Smartsheet(self._access_token)
         self.client.errors_as_exceptions(True)
 
-        self.server_name = kwargs.get('server_name', 'localhost')
-        self.database_name = kwargs.get('database_name', 'TEST_DB')
+        # self.server_name = kwargs.get('server_name', 'localhost')
+        # self.database_name = kwargs.get('database_name', 'TEST_DB')
 
-        # super().__init__(server_name=self.server_name, database_name=self.database_name)
-        self.dbclient = DbClient(self.server_name, self.database_name)
 
     def print_sheets(self) -> None:
         """Displays summary of sheets accessible to client.
@@ -98,7 +96,7 @@ class SmartsheetClient(smartsheet.Smartsheet):
         for column_name, value in columns_dict.items():
             data_dict[column_name] = list()
 
-        # poplute ss data dictionary
+        # populate ss data dictionary
         for row in sheet.rows:
             data_dict['RowID'].append(int(row.id))
             for column_map_name, column_map_id in columns_dict.items():
@@ -108,27 +106,41 @@ class SmartsheetClient(smartsheet.Smartsheet):
         # convert ss data dictionary to dataframe
         df = DataFrame(data_dict).infer_objects()
 
+        # drop rows that contain all blank values
+        user_columns = list(df.columns)[1:]
+        df = df.dropna(axis=0, how='all', subset=user_columns)
+
         return df
 
-    def create_table(self, sheet_id: str, **kwargs: dict) -> None:
-        schema_name = kwargs.get('schema_name', 'dbo')
-        table_name = kwargs.get('table_name')
-        df = self.get_sheet_dataframe(sheet_id)
-        self.dbclient.create_table(schema_name=schema_name, table_name=table_name, df=df)
+    # def create_table(self, sheet_id: str, **kwargs: dict) -> None:
+    #     schema_name = kwargs.get('schema_name', 'dbo')
+    #     table_name = kwargs.get('table_name')
+    #     df = self.get_sheet_dataframe(sheet_id)
+    #     self.dbclient.create_table(schema_name=schema_name, table_name=table_name, df=df)
 
-    def reload_table(self, sheet_id: str, **kwargs: dict) -> None:
-        schema_name = kwargs.get('schema_name', 'dbo')
-        table_name = kwargs.get('table_name')
-        df = self.get_sheet_dataframe(sheet_id)
-
-        self.dbclient.reload_table(schema_name=schema_name, table_name=table_name, df=df)
+    # def reload_table(self, sheet_id: str, **kwargs: dict) -> None:
+    #     schema_name = kwargs.get('schema_name', 'dbo')
+    #     table_name = kwargs.get('table_name')
+    #     df = self.get_sheet_dataframe(sheet_id)
+    #
+    #     self.dbclient.reload_table(schema_name=schema_name, table_name=table_name, df=df)
 
 
 class SmartsheetIntegration(SmartsheetClient):
-    def __init__(self, access_token, sheet_id, schema_name, table_name, columns_config, **kwargs):
-        super().__init__(access_token, **kwargs)
+    def __init__(
+            self,
+            access_token: str,
+            sheet_id: str,
+            schema_name,
+            table_name,
+            columns_config: str,
+            db_client: SqlServerClient
+    ) -> None:
+
+        super().__init__(access_token)
 
         self.sheet_updated = 0
+        self.db_client = db_client
 
         self.sheet_id = sheet_id
         self.schema_name = schema_name
@@ -150,7 +162,7 @@ class SmartsheetIntegration(SmartsheetClient):
 
         # load the smartsheet and sql table into dataframes
         self.df_ss = self.get_sheet_dataframe(sheet_id)
-        self.df_sql = self.dbclient.get_table_dataframe(schema_name=schema_name, table_name=table_name)
+        self.df_sql = self.db_client.get_table_dataframe(schema_name=schema_name, table_name=table_name)
         # self.df_sql['RowID'].dtype('int64')
         # self.df = self.df.astype({'RowID': 'int64'}).dtypes
 
@@ -345,7 +357,7 @@ class SmartsheetIntegration(SmartsheetClient):
                 # sql_cmd += f"\nWHERE CONVERT(VARCHAR(32), [{primary_key}], 2) = '{primary_key_value}'\n"
                 sql_cmd += f"\nWHERE [{self.primary_key_sql}] = '{primary_key_value}'\n"
 
-                # self.dbclient.execute_sql_query(sql_cmd)
+                # self.db_client.execute_sql_query(sql_cmd)
                 # print(sql_cmd)
                 # exit()
 
@@ -355,13 +367,13 @@ class SmartsheetIntegration(SmartsheetClient):
                 # perform the sql updates in batches
                 if sql_update_count >= sql_update_max_count:
                     # print(sql_cmds)
-                    self.dbclient.execute_sql_query(sql_cmds)   # todo: add try block
+                    self.db_client.execute_sql_query(sql_cmds)   # todo: add try block
                     sql_cmds = ''
                     sql_update_count = 0
 
             # perform any remaining updates
             if len(sql_cmds) > 0:
-                self.dbclient.execute_sql_query(sql_cmds)   # todo: add try block
+                self.db_client.execute_sql_query(sql_cmds)   # todo: add try block
 
     def merge_sql_deletes(self):
         pass
