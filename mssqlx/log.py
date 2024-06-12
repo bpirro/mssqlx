@@ -6,6 +6,7 @@ Common library of logging functions for use with Omnicell BI_Analytics ETL.
 import logging
 import os
 
+
 def configure_logger(calling_script_name):
     # create custom logger
     # logger = logging.getLogger(__name__)

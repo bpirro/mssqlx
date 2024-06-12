@@ -69,6 +69,7 @@ class SqlServerClient:
         self.df = pd.read_sql_query(con=self.engine, sql=sql_cmd)
         self.df.fillna('', inplace=True)
         self.df = self.df.astype('str')
+        # self.df = self.df.infer_objects()
         return self.df
 
     def get_query_dataframe(self, query):
