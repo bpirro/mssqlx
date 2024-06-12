@@ -3,6 +3,7 @@
 Utility module for exporting or viewing clients data.
 """
 
+import numpy as np
 import pandas as pd
 import smartsheet
 from mssqlx.crud import SqlServerClient
@@ -96,10 +97,10 @@ class SmartsheetClient(smartsheet.Smartsheet):
             for column_map_name, column_map_id in columns_dict.items():
                 field_value = row.get_column(column_map_id).value
                 data_dict[column_map_name].append(field_value)
-
         # convert ss data dictionary to dataframe
-        df = pd.DataFrame(data_dict).astype('str')
-
+        df = pd.DataFrame(data_dict).convert_dtypes(dtype_backend='numpy_nullable')
+        df = df.replace({np.nan: None})
+        # df = pd.DataFrame(data_dict).convert_dtypes(convert_string=False)
         # drop rows that contain all blank values
         user_columns = list(df.columns)[1:]
         df = df.dropna(axis=0, how='all', subset=user_columns)
@@ -133,7 +134,7 @@ class SmartsheetIntegration(SmartsheetClient):
 
         self.column_actions = column_actions
         self.column_name_map = column_name_map
-        # self.column_options = column_options
+        self.column_options = column_options
 
         # identify pk linking ss to sql table
         self.primary_key_ss = list(filter(lambda column: column_actions[column] == 'PRIMARY KEY', column_actions))[0]
@@ -142,11 +143,14 @@ class SmartsheetIntegration(SmartsheetClient):
         # build lists of smartsheet columns with special constraints
         self.checkbox_columns: list = list()
         self.currency_columns: list = list()
+        # self.integer_columns: list = list()
         for column_name, column_option in column_options.items():
             if column_option == 'CHECKBOX':
                 self.checkbox_columns.append(column_name)
             elif column_option == 'CURRENCY':
                 self.currency_columns.append(column_name)
+            # elif column_option == 'INTEGER':
+            #     self.integer_columns.append(column_name)
 
         # load the smartsheet and sql table into dataframes
         self.df_ss = self.get_sheet_dataframe(sheet_id)
@@ -209,7 +213,6 @@ class SmartsheetIntegration(SmartsheetClient):
     def merge_smartsheet_updates(self):
         """Update Smartsheet fields values based upon corresponding SQL field value"""
         # join sql and ss dataframes on primary key field
-        pass
         df_match = pd.merge(self.df_sql, self.df_ss, how='inner', left_on=self.primary_key_sql,
                             right_on=self.primary_key_ss, suffixes=('_sql', '_ss'))
 
@@ -223,7 +226,7 @@ class SmartsheetIntegration(SmartsheetClient):
             # loop through each column in the row
             for column_name, action in columns_export.items():
                 sql_column_name = self.column_name_map.get(column_name, column_name)
-                if column_name == sql_column_name:
+                if column_name == sql_column_name: # disregard leading and trailing whitespace
                     ss_value = row[column_name + '_ss']
                     sql_value = row[sql_column_name + '_sql']
                 else:
