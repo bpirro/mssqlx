@@ -118,7 +118,9 @@ class SmartsheetIntegration(SmartsheetClient):
             column_actions: dict,
             column_name_map: dict,
             column_options: dict,
-            db_client: SqlServerClient
+            db_client: SqlServerClient,
+            df_sql: pd.DataFrame,
+            df_ss: pd.DataFrame
     ) -> None:
 
         super().__init__(access_token)
@@ -143,25 +145,22 @@ class SmartsheetIntegration(SmartsheetClient):
         # build lists of smartsheet columns with special constraints
         self.checkbox_columns: list = list()
         self.currency_columns: list = list()
-        # self.integer_columns: list = list()
         for column_name, column_option in column_options.items():
             if column_option == 'CHECKBOX':
                 self.checkbox_columns.append(column_name)
             elif column_option == 'CURRENCY':
                 self.currency_columns.append(column_name)
-            # elif column_option == 'INTEGER':
-            #     self.integer_columns.append(column_name)
 
         # load the smartsheet and sql table into dataframes
-        self.df_ss = self.get_sheet_dataframe(sheet_id)
-        self.df_sql = self.db_client.get_table_dataframe(schema_name=schema_name, table_name=table_name)
+        self.df_ss = df_ss
+        self.df_sql = df_sql
+        # self.df_ss = self.get_sheet_dataframe(sheet_id)
+        # self.df_sql = self.db_client.get_table_dataframe(schema_name=schema_name, table_name=table_name)
 
     def build_smartsheet_row_new(self, dataframe_row):
         """Builds smartsheet row"""
         self.row = smartsheet.models.Row()
         self.row.to_bottom = True
-
-        # todo: build cells
 
         for column_name, action in self.column_actions.items():
             sql_column_name = self.column_name_map.get(column_name, column_name + '_sql')
@@ -249,6 +248,11 @@ class SmartsheetIntegration(SmartsheetClient):
                         cell_value = sql_value
 
                     cell.value = cell_value
+
+                    if type(cell_value) == int:
+                        # str(cell_value)
+                        cell_value = "'" + str(cell_value)
+
                     cell.display_value = cell_value
 
                     # append update cells to list

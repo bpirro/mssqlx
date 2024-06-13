@@ -67,9 +67,8 @@ class SqlServerClient:
         # Load SQL data into a dataframe
         sql_cmd = f"""SELECT * FROM [{schema_name}].[{table_name}]"""
         self.df = pd.read_sql_query(con=self.engine, sql=sql_cmd)
-        self.df.fillna('', inplace=True)
-        # self.df = self.df.astype('str').
-        self.df = self.df.convert_dtypes(dtype_backend='numpy_nullable')
+        # self.df.fillna('', inplace=True)
+        # self.df = self.df.convert_dtypes(dtype_backend='numpy_nullable')
         return self.df
 
     def get_query_dataframe(self, query):
