@@ -6,6 +6,7 @@ Utility module for exporting or viewing clients data.
 import numpy as np
 import pandas as pd
 import smartsheet
+
 from mssqlx.crud import SqlServerClient
 
 
@@ -120,11 +121,13 @@ class SmartsheetIntegration(SmartsheetClient):
             column_options: dict,
             db_client: SqlServerClient,
             df_sql: pd.DataFrame,
-            df_ss: pd.DataFrame
-    ) -> None:
+            df_ss: pd.DataFrame,
+            logger: None
+    ):
 
         super().__init__(access_token)
 
+        self.logger = logger
         self.sheet_updated = 0
         self.db_client = db_client
 
@@ -211,6 +214,8 @@ class SmartsheetIntegration(SmartsheetClient):
 
     def merge_smartsheet_updates(self):
         """Update Smartsheet fields values based upon corresponding SQL field value"""
+        self.logger.info('Perform merge_sql_updates.')
+
         # join sql and ss dataframes on primary key field
         df_match = pd.merge(self.df_sql, self.df_ss, how='inner', left_on=self.primary_key_sql,
                             right_on=self.primary_key_ss, suffixes=('_sql', '_ss'))
@@ -221,6 +226,7 @@ class SmartsheetIntegration(SmartsheetClient):
         # loop through each row in the matched dataframe
         update_rows = list()
         for idx, row in df_match.iterrows():
+            change_log_dict = {row[self.primary_key_ss]: dict()}
             ss_cells = list()
             # loop through each column in the row
             for column_name, action in columns_export.items():
@@ -235,6 +241,7 @@ class SmartsheetIntegration(SmartsheetClient):
                 if ss_value == sql_value:
                     continue
                 else:
+                    change_log_dict[row[self.primary_key_ss]][column_name] = {'old': ss_value, 'new': sql_value}
                     cell = self.client.models.Cell()
                     cell.column_id = self.get_column_id(column_name=column_name)
 
@@ -261,11 +268,11 @@ class SmartsheetIntegration(SmartsheetClient):
             # Build a new row if there are any updated cells
             if len(ss_cells) > 0:
                 ss_row = self.client.models.Row()
-                # ss_row.id = int(row['RowID'])
                 ss_row.id = int(row.get('RowID', row['RowID_ss']))
                 for cell in ss_cells:
                     ss_row.cells.append(cell)
                 update_rows.append(ss_row)
+                self.logger.info('UPDATE SMARTSHEET -> ' + str(change_log_dict))
 
         if len(update_rows) > 0:
             try:
@@ -273,6 +280,8 @@ class SmartsheetIntegration(SmartsheetClient):
                 smartsheet_updated = True
             except Exception as e:
                 raise e
+
+        # self.logger.info('End merge_sql_updates.')
 
     def merge_smartsheet_deletes(self):
         pass
