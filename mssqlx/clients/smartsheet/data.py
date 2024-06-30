@@ -2,6 +2,7 @@
 
 Utility module for exporting or viewing clients data.
 """
+import datetime
 
 import numpy as np
 import pandas as pd
@@ -146,13 +147,19 @@ class SmartsheetIntegration(SmartsheetClient):
         self.primary_key_sql = column_name_map.get(self.primary_key_ss, self.primary_key_ss)
 
         # build lists of smartsheet columns with special constraints
+        self.contact_columns: list = list()
         self.checkbox_columns: list = list()
         self.currency_columns: list = list()
+        self.integer_columns: list = list()
         for column_name, column_option in column_options.items():
-            if column_option == 'CHECKBOX':
+            if column_option == 'CONTACT':
+                self.contact_columns.append(column_name)
+            elif column_option == 'CHECKBOX':
                 self.checkbox_columns.append(column_name)
             elif column_option == 'CURRENCY':
                 self.currency_columns.append(column_name)
+            elif column_option == 'INTEGER':
+                self.integer_columns.append(column_name)
 
         # load the smartsheet and sql table into dataframes
         self.df_ss = df_ss
@@ -174,10 +181,15 @@ class SmartsheetIntegration(SmartsheetClient):
                     cell.format = ',,,,,,,,,,,13,0,1,2,,'
                     # set decimals to two decimal places
                     value = str(format(float(dataframe_row[sql_column_name]), '.2f'))
-                elif sql_column_name in self.checkbox_columns:
+                elif column_name in self.checkbox_columns:
                     cell = smartsheet.Smartsheet.models.Cell()
                     cell.strict = False
                     value = str(dataframe_row[sql_column_name])
+                # new
+                elif column_name in self.integer_columns:
+                    cell = smartsheet.Smartsheet.models.Cell()
+                    cell.strict = False
+                    value = int(str(dataframe_row[sql_column_name]))
                 else:
                     cell = smartsheet.Smartsheet.models.Cell()
                     cell.strict = True
@@ -237,38 +249,57 @@ class SmartsheetIntegration(SmartsheetClient):
                 else:
                     ss_value = row[column_name]
                     sql_value = row[sql_column_name]
+
                 # create a new, updated cell if the sql value does not match ss value
                 if ss_value == sql_value:
                     continue
                 else:
-                    change_log_dict[row[self.primary_key_ss]][column_name] = {'old': ss_value, 'new': sql_value}
                     cell = self.client.models.Cell()
                     cell.column_id = self.get_column_id(column_name=column_name)
+
+                    # apply rules for smartsheet column constraints
+
+                    cell_value, display_value = None, None
 
                     # format currency data
                     if column_name in self.currency_columns:
                         cell.strict = False
                         cell.format = ',,,,,,,,,,,13,0,1,2,,'
                         cell_value = str(format(float(sql_value), '.2f'))
+                        display_value = cell_value
+                    elif column_name in self.contact_columns:
+                        cell.strict = True # todo: how does this work?
+                        cell_value = sql_value
+                        display_value = sql_value.replace('@omnicell.com', '').replace('.', ' ').title()
                     else:
                         cell.strict = True
-                        cell_value = sql_value
-
-                    cell.value = cell_value
+                        if sql_value is not None:
+                            cell_value = sql_value
+                        else:
+                            # cell_value = None # test
+                            cell_value = ''
+                        display_value = cell_value
 
                     if type(cell_value) == int:
                         # str(cell_value)
                         cell_value = "'" + str(cell_value)
 
-                    cell.display_value = cell_value
+                    cell.value = cell_value
+                    cell.display_value = display_value
+
+                    # cell.value = ' csm.pool@omnicell.com'
+                    # cell.display_value = 'CSM Pool'
 
                     # append update cells to list
                     ss_cells.append(cell)
 
+                    change_log_dict[row[self.primary_key_ss]][column_name] = {'old': ss_value, 'new': sql_value}
+
             # Build a new row if there are any updated cells
             if len(ss_cells) > 0:
                 ss_row = self.client.models.Row()
-                ss_row.id = int(row.get('RowID', row['RowID_ss']))
+                # ss_row.id = int(row.get('RowID', row['RowID_ss']))
+                ss_row.id = int(row.get('RowID'))
                 for cell in ss_cells:
                     ss_row.cells.append(cell)
                 update_rows.append(ss_row)
