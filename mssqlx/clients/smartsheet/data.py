@@ -243,12 +243,16 @@ class SmartsheetIntegration(SmartsheetClient):
             # loop through each column in the row
             for column_name, action in columns_export.items():
                 sql_column_name = self.column_name_map.get(column_name, column_name)
-                if column_name == sql_column_name: # disregard leading and trailing whitespace
+                if column_name == sql_column_name:
                     ss_value = row[column_name + '_ss']
                     sql_value = row[sql_column_name + '_sql']
                 else:
                     ss_value = row[column_name]
                     sql_value = row[sql_column_name]
+
+                # treat blank sql values as None
+                if sql_value == '':
+                    sql_value = None
 
                 # create a new, updated cell if the sql value does not match ss value
                 if ss_value == sql_value:
@@ -259,7 +263,8 @@ class SmartsheetIntegration(SmartsheetClient):
 
                     # apply rules for smartsheet column constraints
 
-                    cell_value, display_value = None, None
+                    # cell_value, display_value = ''None'', None
+                    # cell_value, display_value = None, None
 
                     # format currency data
                     if column_name in self.currency_columns:
@@ -267,18 +272,24 @@ class SmartsheetIntegration(SmartsheetClient):
                         cell.format = ',,,,,,,,,,,13,0,1,2,,'
                         cell_value = str(format(float(sql_value), '.2f'))
                         display_value = cell_value
+                    # format contact data
                     elif column_name in self.contact_columns:
                         cell.strict = True # todo: how does this work?
-                        cell_value = sql_value
-                        display_value = sql_value.replace('@omnicell.com', '').replace('.', ' ').title()
+                        if sql_value:
+                            cell_value = sql_value
+                            display_value = sql_value.replace('@omnicell.com', '').replace('.', ' ').title()
+                        else:
+                            cell_value = ''
+                            display_value = ''
                     else:
                         cell.strict = True
                         if sql_value is not None:
                             cell_value = sql_value
+                            display_value = sql_value
                         else:
                             # cell_value = None # test
                             cell_value = ''
-                        display_value = cell_value
+                            display_value = ''
 
                     if type(cell_value) == int:
                         # str(cell_value)
