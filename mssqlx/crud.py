@@ -1,8 +1,9 @@
-""""Data Warehouse database connection utilities
+""""Sql
 
 Utilities for interacting with data warehouse database objects.
 """
 
+import numpy as np
 import pandas as pd
 from sqlalchemy.engine import URL, create_engine
 from sqlalchemy.sql import text as sa_text
@@ -17,7 +18,7 @@ class SqlServerClient:
     """Base SQL class"""
     def __init__(self, server_name: str, database_name: str) -> None:
         # Build SQL connection string
-        self.df = None
+        self.df = pd.DataFrame()
         self.connection_string = "DRIVER={ODBC Driver 17 for SQL Server};" \
                             f"SERVER={server_name};" \
                             f"DATABASE={database_name};" \
@@ -62,11 +63,12 @@ class SqlServerClient:
         """
         df.to_sql(table_name, schema=schema_name, con=self.engine, if_exists='append', index=False)
 
-    def get_table_dataframe(self, schema_name, table_name):
+    def get_table_dataframe(self, schema_name: str, table_name: str):
         """Returns a dataframe from a SQL table."""
         # Load SQL data into a dataframe
         sql_cmd = f"""SELECT * FROM [{schema_name}].[{table_name}]"""
         self.df = pd.read_sql_query(con=self.engine, sql=sql_cmd)
+        self.df = self.df.replace({np.nan: None})
         # self.df.fillna('', inplace=True)
         # self.df = self.df.convert_dtypes(dtype_backend='numpy_nullable')
         return self.df
@@ -75,7 +77,8 @@ class SqlServerClient:
         """Returns a dataframe from a SQL query result set."""
         # Load SQL data into a dataframe
         self.df = pd.read_sql_query(con=self.engine, sql=query)
-        self.df.fillna('', inplace=True)
+        # self.df.fillna(None, inplace=True)
+        self.df = self.df.replace({np.nan: None})
         self.df = self.df.astype('str')
         return self.df
 
@@ -84,13 +87,11 @@ class SqlServerClient:
         sql_cmd = sa_text(sql_cmd)
         with self.engine.begin() as conn:
             result = conn.execute(sql_cmd)
-        #
-        # self.df = pd.to_sql(con=self.engine, sql=sql_cmd)
-        # self.df.fillna('', inplace=True)
-        # self.df = self.df.astype('str')
-        # return self.df
-        
+
     def truncate_table(self):
+        pass
+
+    def backup_database(self):
         pass
 
     def insert_row(self):
