@@ -21,7 +21,6 @@ class SmartsheetClient(smartsheet.Smartsheet):
         # self.server_name = kwargs.get('server_name', 'localhost')
         # self.database_name = kwargs.get('database_name', 'TEST_DB')
 
-
     def print_sheets(self) -> None:
         """Displays summary of sheets accessible to client.
 
