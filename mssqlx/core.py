@@ -27,7 +27,14 @@ class SqlServerClient:
 
         self.engine = create_engine(self.connection_url)
 
-    def create_table(self, schema_name: str, table_name: str, df: pd.DataFrame, **kwargs) -> None:
+    def _parse_table_full_name(self, table_full_name: str) -> tuple(str, str):
+        """Parses full table name into separate schema and table names"""
+        schema_name = table_full_name.replace('[', '').replace(']', '').split('.')[0]
+        table_name = table_full_name.replace('[', '').replace(']', '').split('.')[1]
+        return (schema_name, table_name)
+
+
+    def create_table(self, table_full_name: str, schema_name: str, table_name: str, df: pd.DataFrame) -> None:
         # def create_sql_table(self, **kwargs) -> None:
         """Creates SQL table with dataframe data.
 
@@ -36,10 +43,11 @@ class SqlServerClient:
         :param pd.Dataframe df: Dataframe data to be inserted into SQL table.
         :return: None
         """
-
+        if table_full_name:
+            schema_name, table_name = _parse_table_full_name(self, table_full_name: str)
         df.to_sql(table_name, schema=schema_name, con=self.engine, if_exists='replace', index=False)
 
-    def reload_table(self, schema_name: str, table_name: str, df: pd.DataFrame) -> None:
+    def reload_table(self, table_full_name: str, schema_name: str, table_name: str, df: pd.DataFrame) -> None:
         """Reloads SQL table with dataframe data.
 
         :param str schema_name: Schema name of the SQL table being reloaded.
@@ -47,6 +55,8 @@ class SqlServerClient:
         :param pd.Dataframe df: Dataframe data to be inserted into SQL table.
         :return: None
         """
+        if table_full_name:
+            schema_name, table_name = _parse_table_full_name(table_full_name)
         with self.engine.begin() as conn:
             conn.execute(
                 sa_text(f'''TRUNCATE TABLE [{schema_name}].[{table_name}]''').execution_options(autocommit=True))
