@@ -3,12 +3,15 @@
 Utilities for interacting with data warehouse database objects.
 """
 
+import numpy as np
 import pandas as pd
 from sqlalchemy.engine import URL, create_engine
 from sqlalchemy.sql import text as sa_text
 
+
 class SqlServerClientError(Exception):
     pass
+
 
 # class DatabaseClient():
 #     """Base interface class for database connections."""
@@ -30,6 +33,7 @@ class SqlServerClient:
     get_query_dataframe(query): Returns a dataframe from a SQL query result set.
     truncate_table(schema_name, table_name): Truncates SQL table.
     execute_command(sql_cmd): Executes a SQL command.
+    disconnect(): Disposes of the sql alchemy engine connection
     """
 
     def __init__(self, server_name: str, database_name: str) -> None:
@@ -39,7 +43,7 @@ class SqlServerClient:
         :param server_name: Name of Sql Server instancee
         :param database_name: Name of the database
         """
-        self.df = None
+        # self.df = None
         # Build SQL connection string
         self.connection_string = "DRIVER={ODBC Driver 17 for SQL Server};" \
                             f"SERVER={server_name};" \
@@ -50,7 +54,11 @@ class SqlServerClient:
 
         self.engine = create_engine(self.connection_url)
 
-    def _parse_table_name(self, table_name: str, schema_name: str = 'dbo') -> list():
+    # def __del__(self):
+    #     """SqlServerClient destructor"""
+    #     self.engine.dispose()
+
+    def _parse_sql_name(self, table_name: str, schema_name: str = 'dbo') -> list():
         """Parses full table name into separate schema and table names"""
         table_name_parts: list = table_name.replace('[', '').replace(']', '').split('.')
         if len(table_name_parts) > 2:
@@ -60,7 +68,7 @@ class SqlServerClient:
             table_name = table_name_parts[1]
         else:
             table_name = table_name_parts[0]
-        return (schema_name, table_name)
+        return schema_name, table_name
 
     def dataframe_to_table(self, df: pd.DataFrame, table_name: str, schema_name: str = 'dbo', method: str = 'reload') -> None:
         # def create_sql_table(self, **kwargs) -> None:
@@ -72,7 +80,7 @@ class SqlServerClient:
         :param method: How the data is loaded; reload, append or create
         :return:
         """
-        schema_name, table_name = self._parse_table_name(table_name, schema_name)
+        schema_name, table_name = self._parse_sql_name(table_name, schema_name)
 
         if method == 'reload':
             update_type = 'append'
@@ -92,13 +100,14 @@ class SqlServerClient:
         :param schema_name:
         :return:
         """
-        schema_name, table_name = self._parse_table_name(table_name, schema_name)
+        schema_name, table_name = self._parse_sql_name(table_name, schema_name)
 
         # Load SQL data into a dataframe
         sql_cmd = f"""SELECT * FROM [{schema_name}].[{table_name}]"""
-        df = pd.read_sql_query(con=self.engine, sql=sql_cmd)
-        # self.df.fillna('', inplace=True)
-        # self.df = self.df.convert_dtypes(dtype_backend='numpy_nullable')
+
+        with self.engine.begin() as conn:
+            df = pd.read_sql_query(con=conn, sql=sql_cmd)
+        df = df.replace({np.nan: None})
         return df
 
     def get_query_dataframe(self, query) -> pd.DataFrame:
@@ -108,12 +117,11 @@ class SqlServerClient:
         :param query: SQL query that returns dataset.
         :return: Pandas DataFrmae
         """
-
         # Load SQL data into a dataframe
-        df = pd.read_sql_query(con=self.engine, sql=query)
-        df = df.fillna(None)
-        df = self.df.astype('str')
-        return self.df
+        with self.engine.begin() as conn:
+            df = pd.read_sql_query(con=conn, sql=query)
+        df = df.replace({np.nan: None})
+        return df
 
     def execute_command(self, sql_cmd) -> None:
         """
@@ -136,13 +144,25 @@ class SqlServerClient:
 
         :return: None
         """
-        schema_name, table_name = self._parse_table_name(table_name, schema_name)
+        schema_name, table_name = self._parse_sql_name(table_name, schema_name)
 
         with self.engine.begin() as conn:
             conn.execute(sa_text(f'''TRUNCATE TABLE [{schema_name}].[{table_name}]''').execution_options(autocommit=True))
 
-    def insert_row(self):
-        pass
+    def execute_sp(self, stored_proc_name: str, schema_name: str = 'dbo') -> None:
+        """
+        Executes SQL stored procedure.
 
-    def execute_sp(self):
-        pass
+        :param stored_proc_name: Name of procedure in schema.table or table format
+        :param schema_name: Optional name of schema
+
+        :return: None
+        """
+        schema_name, stored_proc_name = self._parse_sql_name(stored_proc_name, schema_name)
+
+        with self.engine.begin() as conn:
+            conn.execute(sa_text(f'''EXECUTE [{schema_name}].[{stored_proc_name}]''').execution_options(autocommit=True))
+
+    def disconnect(self) -> None:
+        """Method to close the open database connection."""
+        self.engine.dispose()
