@@ -111,19 +111,6 @@ class SmartsheetClient(smartsheet.Smartsheet):
 
         return df
 
-    # def create_table(self, sheet_id: str, **kwargs: dict) -> None:
-    #     schema_name = kwargs.get('schema_name', 'dbo')
-    #     table_name = kwargs.get('table_name')
-    #     df = self.get_sheet_dataframe(sheet_id)
-    #     self.dbclient.create_table(schema_name=schema_name, table_name=table_name, df=df)
-
-    # def reload_table(self, sheet_id: str, **kwargs: dict) -> None:
-    #     schema_name = kwargs.get('schema_name', 'dbo')
-    #     table_name = kwargs.get('table_name')
-    #     df = self.get_sheet_dataframe(sheet_id)
-    #
-    #     self.dbclient.reload_table(schema_name=schema_name, table_name=table_name, df=df)
-
 
 class SmartsheetIntegration(SmartsheetClient):
     def __init__(
