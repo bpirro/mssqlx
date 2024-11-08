@@ -1,6 +1,21 @@
-"""Smartsheet ETL Library
+"""SQL Smartsheet Integration
 
-Utility module for exporting or viewing clients data.
+Integrates a SQL table with a Smartsheet. New entries in the SQL table are written to the Smartsheet.  Some column updates are pushed from SQL to Smartsheet, while other columns
+are pulled from the Smartsheet into the SQL table.
+
+Notes:
+    There must be one column used a primary key in both the SQL table and Smartsheet.
+    Multi-column primary keys are currently not supported.
+
+:param Columns_Config - Dictionary of dictionaries with column config data.  Must be configured for
+
+# _COLUMNS_DICT value definitions:
+# PRIMARY KEY - field that serves as unique identifier and link between sql table and smartsheet
+# PUSH - column fields are compared between smartsheet and sql -> changes are replicated from sql to smartsheet.
+# PULL - column fields are compared between smartsheet and sql -> changes are replicated from smartsheet to sql.
+# POPULATE - column fields are NOT compared between smartsheet and sql -> field is populated during initial smartsheet
+# insert
+# IGNORE - column fields are NOT compared between smartsheet and sql and changes are NOT replicated in either direction.
 """
 
 import os
