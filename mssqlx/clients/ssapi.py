@@ -1,26 +1,28 @@
-"""Smartsheet ETL Library
+"""
+Smartsheet API wrapper data client.
 
-Utility module for exporting or viewing clients data.
+Provide utility and data handling methods for interacting with Smartsheet via a wrapper on the smartsheet api/sdk.
+
+:author: Brian Pirro
 """
 
-import os
+
 import smartsheet
+
 from pandas import DataFrame
 from mssqlx.crud import SqlServerClient
 
 
 class SmartsheetClient(smartsheet.Smartsheet):
     """Class for running ETL on Smartsheet"""
-    def __init__(self, access_token, DbClient=SqlServerClient, **kwargs):
+
+    def __init__(self, access_token):
         self._access_token = access_token
         self.client = smartsheet.Smartsheet(self._access_token)
         self.client.errors_as_exceptions(True)
 
-        self.server_name = kwargs.get('server_name', 'localhost')
-        self.database_name = kwargs.get('database_name', 'TEST_DB')
-
-        # super().__init__(server_name=self.server_name, database_name=self.database_name)
-        self.dbclient = DbClient(self.server_name, self.database_name)
+        # self.server_name = kwargs.get('server_name', 'localhost')
+        # self.database_name = kwargs.get('database_name', 'TEST_DB')
 
     def print_sheets(self) -> None:
         """Displays summary of sheets accessible to client.
@@ -96,7 +98,7 @@ class SmartsheetClient(smartsheet.Smartsheet):
         for column_name, value in columns_dict.items():
             data_dict[column_name] = list()
 
-        # poplute ss data dictionary
+        # populate ss data dictionary
         for row in sheet.rows:
             data_dict['RowID'].append(int(row.id))
             for column_map_name, column_map_id in columns_dict.items():
@@ -106,21 +108,8 @@ class SmartsheetClient(smartsheet.Smartsheet):
         # convert ss data dictionary to dataframe
         df = DataFrame(data_dict).infer_objects()
 
+        # drop rows that contain all blank values
+        user_columns = list(df.columns)[1:]
+        df = df.dropna(axis=0, how='all', subset=user_columns)
+
         return df
-
-    def create_table(self, sheet_id: str, **kwargs: dict) -> None:
-        schema_name = kwargs.get('schema_name', 'dbo')
-        table_name = kwargs.get('table_name')
-        df = self.get_sheet_dataframe(sheet_id)
-        self.dbclient.create_table(schema_name=schema_name, table_name=table_name, df=df)
-
-    def reload_table(self, sheet_id: str, **kwargs: dict) -> None:
-        schema_name = kwargs.get('schema_name', 'dbo')
-        table_name = kwargs.get('table_name')
-        df = self.get_sheet_dataframe(sheet_id)
-        
-        self.dbclient.reload_table(schema_name=schema_name, table_name=table_name, df=df)
-
-
-if __name__ == '__main__':
-    pass
