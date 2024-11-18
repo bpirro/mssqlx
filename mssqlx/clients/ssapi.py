@@ -94,13 +94,14 @@ class SmartsheetClient(smartsheet.Smartsheet):
 
         # create dictionary of lists to hold ss data
         data_dict = dict()
-        data_dict['RowID'] = list()
+        data_dict['RowId'], data_dict['RowNumber'] = list(), list()
         for column_name, value in columns_dict.items():
             data_dict[column_name] = list()
 
         # populate ss data dictionary
         for row in sheet.rows:
-            data_dict['RowID'].append(int(row.id))
+            data_dict['RowId'].append(int(row.id))
+            data_dict['RowNumber'].append(int(row.row_number))
             for column_map_name, column_map_id in columns_dict.items():
                 field_value = row.get_column(column_map_id).value
                 data_dict[column_map_name].append(field_value)
@@ -113,3 +114,7 @@ class SmartsheetClient(smartsheet.Smartsheet):
         df = df.dropna(axis=0, how='all', subset=user_columns)
 
         return df
+
+
+if __name__ == '__main__':
+    pass
