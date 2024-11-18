@@ -36,7 +36,7 @@ class SqlServerClient:
     disconnect(): Disposes of the sql alchemy engine connection
     """
 
-    def __init__(self, server_name: str, database_name: str) -> None:
+    def __init__(self, server_name: str, database_name: str, user_name: str = None, password: str = None) -> None:
         """
         Initalizes a SqlServerClient object.
 
@@ -45,18 +45,20 @@ class SqlServerClient:
         """
         # self.df = None
         # Build SQL connection string
-        self.connection_string = "DRIVER={ODBC Driver 17 for SQL Server};" \
-                            f"SERVER={server_name};" \
-                            f"DATABASE={database_name};" \
-                            "Trusted_Connection=Yes;"
+        if not user_name:
+            self.connection_string = "DRIVER={ODBC Driver 17 for SQL Server};" \
+                                f"SERVER={server_name};" \
+                                f"DATABASE={database_name};" \
+                                "Trusted_Connection=Yes;"
+        else:
+            self.connection_string = "DRIVER={ODBC Driver 17 for SQL Server};" \
+                                f"SERVER={server_name};" \
+                                f"DATABASE={database_name};" \
+                                f"uid={user_name};pwd={password};"
 
         self.connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": self.connection_string})
 
         self.engine = create_engine(self.connection_url)
-
-    # def __del__(self):
-    #     """SqlServerClient destructor"""
-    #     self.engine.dispose()
 
     def _parse_sql_name(self, table_name: str, schema_name: str = 'dbo') -> list():
         """Parses full table name into separate schema and table names"""
@@ -82,12 +84,12 @@ class SqlServerClient:
         """
         schema_name, table_name = self._parse_sql_name(table_name, schema_name)
 
-        if method == 'reload':
+        if method == 'RELOAD':
             update_type = 'append'
             self.truncate_table(schema_name=schema_name, table_name=table_name)
-        elif method == 'create':
+        elif method == 'CREATE':
             update_type = 'replace'
-        elif method == 'append':
+        elif method == 'APPEND':
             update_type = 'append'
 
         df.to_sql(table_name, schema=schema_name, con=self.engine, if_exists=update_type, index=False)
