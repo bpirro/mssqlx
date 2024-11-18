@@ -36,7 +36,7 @@ class SqlServerClient:
     disconnect(): Disposes of the sql alchemy engine connection
     """
 
-    def __init__(self, server_name: str, database_name: str) -> None:
+    def __init__(self, server_name: str, database_name: str, user_name: str = None, password: str = None) -> None:
         """
         Initalizes a SqlServerClient object.
 
@@ -45,10 +45,16 @@ class SqlServerClient:
         """
         # self.df = None
         # Build SQL connection string
-        self.connection_string = "DRIVER={ODBC Driver 17 for SQL Server};" \
-                            f"SERVER={server_name};" \
-                            f"DATABASE={database_name};" \
-                            "Trusted_Connection=Yes;"
+        if not user_name:
+            self.connection_string = "DRIVER={ODBC Driver 17 for SQL Server};" \
+                                f"SERVER={server_name};" \
+                                f"DATABASE={database_name};" \
+                                "Trusted_Connection=Yes;"
+        else:
+            self.connection_string = "DRIVER={ODBC Driver 17 for SQL Server};" \
+                                f"SERVER={server_name};" \
+                                f"DATABASE={database_name};" \
+                                f"uid={user_name};pwd={password};"
 
         self.connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": self.connection_string})
 
