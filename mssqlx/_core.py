@@ -54,10 +54,6 @@ class SqlServerClient:
 
         self.engine = create_engine(self.connection_url)
 
-    # def __del__(self):
-    #     """SqlServerClient destructor"""
-    #     self.engine.dispose()
-
     def _parse_sql_name(self, table_name: str, schema_name: str = 'dbo') -> list():
         """Parses full table name into separate schema and table names"""
         table_name_parts: list = table_name.replace('[', '').replace(']', '').split('.')
@@ -82,12 +78,12 @@ class SqlServerClient:
         """
         schema_name, table_name = self._parse_sql_name(table_name, schema_name)
 
-        if method == 'reload':
+        if method == 'RELOAD':
             update_type = 'append'
             self.truncate_table(schema_name=schema_name, table_name=table_name)
-        elif method == 'create':
+        elif method == 'CREATE':
             update_type = 'replace'
-        elif method == 'append':
+        elif method == 'APPEND':
             update_type = 'append'
 
         df.to_sql(table_name, schema=schema_name, con=self.engine, if_exists=update_type, index=False)
